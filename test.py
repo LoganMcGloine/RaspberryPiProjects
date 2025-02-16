@@ -1,6 +1,7 @@
 from gpiozero import LED, Button, Buzzer, MotionSensor, DistanceSensor
 from time import sleep
 import datetime
+import keyboard
 
 
 led = LED(17)
@@ -26,3 +27,9 @@ while True:
 	led.off()
 	buzzer.off()
 #	print("movement detected at ", datetime.datetime.now().strftime("%H:%M:%S"))
+
+	if keyboard.is_pressed('q'):
+		break
+
+# Clean up GPIO pins
+GPIO.cleanup()
