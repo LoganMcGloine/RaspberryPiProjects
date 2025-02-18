@@ -1,8 +1,8 @@
-from gpiozero import LED, Button, Buzzer, MotionSensor, DistanceSensor
+from gpiozero import LED, Button, Buzzer, DistanceSensor
 from time import sleep
 import datetime
-import keyboard
-
+from signal import signal, SIGINT
+import sys
 
 led = LED(17)
 button = Button(2)
@@ -13,11 +13,21 @@ ultrasonic = DistanceSensor(echo=15, trigger=18)
 #while True:
 #	print(ultrasonic.distance)
 
+def signal_handler(sig, frame):
+	print('\nExiting program')
+	led.off()
+	buzzer.off()
+	sys.exit(0)
 
-led_on = False
+# Register the signal handler
+signal(SIGINT, signal_handler)
+
+# Initial buzzer beep
 buzzer.on()
 sleep(1)
 buzzer.off()
+
+print("Program running. Press Ctrl+C to exit")
 while True:
 #	pir.wait_for_motion()
 	button.wait_for_press()
@@ -27,9 +37,6 @@ while True:
 	led.off()
 	buzzer.off()
 #	print("movement detected at ", datetime.datetime.now().strftime("%H:%M:%S"))
-
-	if keyboard.is_pressed('q'):
-		break
 
 # Clean up GPIO pins
 GPIO.cleanup()
