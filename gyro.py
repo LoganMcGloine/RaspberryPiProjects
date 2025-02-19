@@ -1,86 +1,51 @@
 import smbus
-import math
 import time
 
 class MPU6050:
-    # MPU6050 Registers and their Address
-    DEVICE_ADDR = 0x68
-    PWR_MGMT_1 = 0x6B
-    SMPLRT_DIV = 0x19
-    CONFIG = 0x1A
-    GYRO_CONFIG = 0x1B
-    ACCEL_CONFIG = 0x1C
-    ACCEL_XOUT_H = 0x3B
-    ACCEL_YOUT_H = 0x3D
-    ACCEL_ZOUT_H = 0x3F
-    GYRO_XOUT_H = 0x43
-    GYRO_YOUT_H = 0x45
-    GYRO_ZOUT_H = 0x47
-
-    def __init__(self, bus_num=1):
-        self.bus = smbus.SMBus(bus_num)
-        # Wake up the MPU6050
-        self.bus.write_byte_data(self.DEVICE_ADDR, self.PWR_MGMT_1, 0)
-
-    def read_raw_data(self, addr):
-        # Read raw 16-bit value
-        high = self.bus.read_byte_data(self.DEVICE_ADDR, addr)
-        low = self.bus.read_byte_data(self.DEVICE_ADDR, addr + 1)
-
-        # Combine high and low bytes
-        value = ((high << 8) | low)
+    def __init__(self):
+        # Initialize I2C bus and MPU6050 address
+        self.bus = smbus.SMBus(1)
+        self.address = 0x68
         
-        # Get signed value
+        # Wake up the MPU6050
+        self.bus.write_byte_data(self.address, 0x6B, 0)
+
+    def read_value(self, register):
+        # Read 2 bytes and convert to signed value
+        high = self.bus.read_byte_data(self.address, register)
+        low = self.bus.read_byte_data(self.address, register + 1)
+        value = (high << 8) | low
+        
         if value > 32768:
-            value = value - 65536
+            value -= 65536
         return value
 
-    def get_data(self):
-        # Read Accelerometer raw data
-        acc_x = self.read_raw_data(self.ACCEL_XOUT_H)
-        acc_y = self.read_raw_data(self.ACCEL_YOUT_H)
-        acc_z = self.read_raw_data(self.ACCEL_ZOUT_H)
-
-        # Read Gyroscope raw data
-        gyro_x = self.read_raw_data(self.GYRO_XOUT_H)
-        gyro_y = self.read_raw_data(self.GYRO_YOUT_H)
-        gyro_z = self.read_raw_data(self.GYRO_ZOUT_H)
-
-        # Full scale range +/- 250 degree/C as per sensitivity scale factor
-        Ax = acc_x/16384.0
-        Ay = acc_y/16384.0
-        Az = acc_z/16384.0
-
-        Gx = gyro_x/131.0
-        Gy = gyro_y/131.0
-        Gz = gyro_z/131.0
-
-        return {
-            'acceleration': {'x': Ax, 'y': Ay, 'z': Az},
-            'gyroscope': {'x': Gx, 'y': Gy, 'z': Gz}
-        }
+    def get_readings(self):
+        # Get accelerometer values (registers 0x3B-0x40)
+        ax = self.read_value(0x3B) / 16384.0  # Convert to g
+        ay = self.read_value(0x3D) / 16384.0
+        az = self.read_value(0x3F) / 16384.0
+        
+        # Get gyroscope values (registers 0x43-0x48)
+        gx = self.read_value(0x43) / 131.0  # Convert to degrees/sec
+        gy = self.read_value(0x45) / 131.0
+        gz = self.read_value(0x47) / 131.0
+        
+        return ax, ay, az, gx, gy, gz
 
 def main():
-    mpu = MPU6050()
-    print("Reading Data of Gyroscope and Accelerometer")
-
+    sensor = MPU6050()
+    print("Reading MPU6050 values, press Ctrl+C to stop...")
+    
     try:
         while True:
-            data = mpu.get_data()
-            print("\nAccelerometer data")
-            print(f"X = {data['acceleration']['x']:.2f}g")
-            print(f"Y = {data['acceleration']['y']:.2f}g")
-            print(f"Z = {data['acceleration']['z']:.2f}g")
-            
-            print("\nGyroscope data")
-            print(f"X = {data['gyroscope']['x']:.2f}°/s")
-            print(f"Y = {data['gyroscope']['y']:.2f}°/s")
-            print(f"Z = {data['gyroscope']['z']:.2f}°/s")
-            
+            ax, ay, az, gx, gy, gz = sensor.get_readings()
+            print(f"\nAccel: x={ax:.1f}g, y={ay:.1f}g, z={az:.1f}g")
+            print(f"Gyro: x={gx:.1f}°/s, y={gy:.1f}°/s, z={gz:.1f}°/s")
             time.sleep(1)
-
+            
     except KeyboardInterrupt:
-        print("\nProgram stopped by user")
+        print("\nStopped by user")
 
 if __name__ == "__main__":
     main()
