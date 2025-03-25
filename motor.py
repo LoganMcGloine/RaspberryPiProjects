@@ -1,56 +1,43 @@
 import RPi.GPIO as GPIO
 import time
 
-# Define GPIO pins
-ENABLE_PIN = 17
-CONTROL_1_PIN = 27
-CONTROL_2_PIN = 22
+# GPIO Pin Setup
+PWMA = 27  # Motor speed control (PWM)
+AIN1 = 22  # Direction 1
+AIN2 = 23  # Direction 2
+STBY = 17  # Standby (must be HIGH to enable motors)
 
-def setup_motor():
-    # Set GPIO mode
-    GPIO.setmode(GPIO.BCM)
-    
-    # Setup pins as outputs
-    GPIO.setup(ENABLE_PIN, GPIO.OUT)
-    GPIO.setup(CONTROL_1_PIN, GPIO.OUT)
-    GPIO.setup(CONTROL_2_PIN, GPIO.OUT)
-    
-    # Setup PWM on enable pin with 100Hz frequency
-    global pwm
-    pwm = GPIO.PWM(ENABLE_PIN, 100)
-    pwm.start(0)  # Start with 0% duty cycle
+# GPIO Mode
+GPIO.setmode(GPIO.BCM)
+GPIO.setup(PWMA, GPIO.OUT)
+GPIO.setup(AIN1, GPIO.OUT)
+GPIO.setup(AIN2, GPIO.OUT)
+GPIO.setup(STBY, GPIO.OUT)
 
-def motor_forward(speed=100):
-    GPIO.output(CONTROL_1_PIN, GPIO.HIGH)
-    GPIO.output(CONTROL_2_PIN, GPIO.LOW)
-    pwm.ChangeDutyCycle(speed)
+# Enable Motor Driver (STBY HIGH)
+GPIO.output(STBY, GPIO.HIGH)
 
-def motor_backward(speed=100):
-    GPIO.output(CONTROL_1_PIN, GPIO.LOW)
-    GPIO.output(CONTROL_2_PIN, GPIO.HIGH)
-    pwm.ChangeDutyCycle(speed)
+# Set Direction (Forward)
+GPIO.output(AIN1, GPIO.HIGH)
+GPIO.output(AIN2, GPIO.LOW)
 
-def motor_stop():
-    pwm.ChangeDutyCycle(0)
-    GPIO.output(CONTROL_1_PIN, GPIO.LOW)
-    GPIO.output(CONTROL_2_PIN, GPIO.LOW)
+# Set Up PWM for Speed Control
+pwm = GPIO.PWM(PWMA, 1000)  # 1kHz PWM frequency
+pwm.start(0)  # Start with 0% duty cycle
 
-def cleanup():
+try:
+    while True:
+        for speed in range(0, 101, 10):  # Increase speed from 0% to 100%
+            pwm.ChangeDutyCycle(speed)
+            print(f"Speed: {speed}%")
+            time.sleep(1)
+        
+        for speed in range(100, -1, -10):  # Decrease speed back to 0%
+            pwm.ChangeDutyCycle(speed)
+            print(f"Speed: {speed}%")
+            time.sleep(1)
+
+except KeyboardInterrupt:
+    print("Stopping motor.")
     pwm.stop()
     GPIO.cleanup()
-
-# Main execution
-setup_motor()
-try:
-    # Accelerate from 0 to 100% over 2 seconds
-    for speed in range(0, 101, 2):  # Increment by 2% each step
-        motor_forward(speed)
-        time.sleep(0.04)  # 2 seconds / 50 steps = 0.04 seconds per step
-    
-    # Run at full speed for 4 seconds
-    time.sleep(4)
-    
-    motor_stop()
-finally:
-    cleanup()
-
